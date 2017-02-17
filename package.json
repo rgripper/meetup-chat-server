@@ -1,0 +1,26 @@
+{
+  "name": "chat-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rgripper/meetup-chat-server.git"
+  },
+  "keywords": [
+    "chat"
+  ],
+  "author": "Vladimir Zotov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rgripper/meetup-chat-server/issues"
+  },
+  "homepage": "https://github.com/rgripper/meetup-chat-server#readme",
+  "dependencies": {
+    "koa": "^2.0.0",
+    "koa-socket": "^4.4.0"
+  }
+}
