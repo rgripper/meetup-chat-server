@@ -1,6 +1,13 @@
-import * as koa from 'koa';
-const app = new koa();
+import * as Koa from 'koa';
+import * as IO from 'koa-socket';
 
-app.use(() => this.body = 'Hello World');
+const app = new Koa()
+const io = new IO()
 
-app.listen(3000); //fff
+io.attach( app )
+
+io.on('join', ( _, data ) => {
+  console.log( 'join event fired', data )
+})
+
+app.listen( process.env.PORT || 3000);

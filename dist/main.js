@@ -1,7 +1,11 @@
 "use strict";
-var _this = this;
-var koa = require("koa");
-var app = new koa();
-app.use(function () { return _this.body = 'Hello World'; });
-app.listen(3000); //fff
+var Koa = require("koa");
+var IO = require("koa-socket");
+var app = new Koa();
+var io = new IO();
+io.attach(app);
+io.on('join', function (_, data) {
+    console.log('join event fired', data);
+});
+app.listen(process.env.PORT || 3001);
 //# sourceMappingURL=main.js.map
