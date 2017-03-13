@@ -22,11 +22,12 @@
   "homepage": "https://github.com/rgripper/meetup-chat-server#readme",
   "dependencies": {
     "koa": "^2.0.0",
-    "koa-socket": "^4.4.0"
+    "socket.io": "^1.7.3"
   },
   "devDependencies": {
     "@types/node": "^6.0.38",
     "@types/koa": "^2.0.37",
+    "@types/socket.io": "1.4.28",
     "typescript": "^2.1.6",
     "nodemon": "^1.11.0"
   }
