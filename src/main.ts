@@ -27,10 +27,13 @@ type ServerEvent =
         data: User
     };
 
+console.log('started!');
 io.on('connection', socket => {
+    console.log('connection aquired', socket.id, new Date());
     let currentUser: User | undefined = undefined;
 
     socket.on('chat.client.join', (_, userName: string) => {
+        console.log(`User ${userName} joined`);
         // if (users.some(x => x.name == userName)) {
         //   io.emit('chat.server.join-result', { type: ChatStateType.AuthenticationFailed, errorMessage: 'User with this name has already logged in' } as ChatState)
         // }
@@ -53,6 +56,7 @@ io.on('connection', socket => {
     });
 
     const handleLeave = () => {
+        console.log('connection closed', socket.id, new Date());
         users = users.filter(x => x != currentUser);
 
         const serverEvent: ServerEvent = { type: 'UserLeft', data: currentUser! };
@@ -63,4 +67,4 @@ io.on('connection', socket => {
     socket.on('disconnect', handleLeave);
 });
 
-server.listen(process.env.PORT || 3000);
+server.listen(process.env.PORT || 26335);
