@@ -1,13 +1,11 @@
-import * as Koa from 'koa';
 import * as Http from 'http';
-import * as IO from 'socket.io';
+import * as SocketServer from 'socket.io';
 import { User } from "./model/User";
 import { Message, MessageSubmission } from "./model/Message";
-import { ChatState, ChatStateType } from './model/ChatState';
+import { JoinResult } from './model/ChatState';
 
-const app = new Koa();
-const server = Http.createServer(app.callback);
-const io = IO(server);
+const httpServer = Http.createServer();
+const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
 let users: User[] = [];
 let messages: Message[] = [];
@@ -27,44 +25,56 @@ type ServerEvent =
         data: User
     };
 
-console.log('started!');
-io.on('connection', socket => {
-    console.log('connection aquired', socket.id, new Date());
+console.log('socket server started!');
+socketServer.on('connection', socket => {
+    console.log('connection acquired', socket.id, new Date());
     let currentUser: User | undefined = undefined;
 
-    socket.on('chat.client.join', (_, userName: string) => {
-        console.log(`User ${userName} joined`);
+    socket.on('chat.client.join', (userName: string) => {
+        console.log(`User '${userName}' joined`);
         // if (users.some(x => x.name == userName)) {
         //   io.emit('chat.server.join-result', { type: ChatStateType.AuthenticationFailed, errorMessage: 'User with this name has already logged in' } as ChatState)
         // }
-        currentUser = users.find(x => x.name == userName) || { name: userName, avatarUrl: undefined };
-        users = users.concat([currentUser]);
-        const chatState: ChatState = { type: ChatStateType.AuthenticatedAndInitialized, data: { users, messages, currentUser } };
-        socket.emit('chat.server.join-result', chatState);
+        currentUser = users.find(x => x.name == userName);
+
+        if (currentUser == null) {
+            currentUser = { name: userName, avatarUrl: undefined };
+            users = users.concat([currentUser]);
+        }
+
+        const joinResult: JoinResult = { isSuccessful: true, initialData: { currentUser, users, messages } };
+        socket.emit('chat.server.join-result', joinResult);
 
         const serverEvent: ServerEvent = { type: 'UserJoined', data: currentUser };
-        io.emit('chat.server.event', serverEvent);
+        socketServer.emit('chat.server.event', serverEvent);
     })
 
-    socket.on('chat.client.message', (_, messageSubmission: MessageSubmission) => {
+    socket.on('chat.client.message', (messageSubmission: MessageSubmission) => {
         lastMessageId++;
         const newMessage: Message = { id: lastMessageId, text: messageSubmission.text, creationDate: new Date(), sender: currentUser! };
         messages = messages.concat([newMessage]);
 
         const serverEvent: ServerEvent = { type: 'MessageReceived', data: newMessage };
-        io.emit('chat.server.event', serverEvent);
+        socketServer.emit('chat.server.event', serverEvent);
     });
 
     const handleLeave = () => {
         console.log('connection closed', socket.id, new Date());
+
+        if (!currentUser) {
+            console.log('No user to kick');
+            return;
+        }
+
+        console.log('Kicking user', currentUser.name);
         users = users.filter(x => x != currentUser);
 
         const serverEvent: ServerEvent = { type: 'UserLeft', data: currentUser! };
-        io.emit('chat.server.event', serverEvent);
+        socketServer.emit('chat.server.event', serverEvent);
     };
 
     socket.on('chat.client.leave', handleLeave);
     socket.on('disconnect', handleLeave);
 });
 
-server.listen(process.env.PORT || 26335);
+httpServer.listen(37753);

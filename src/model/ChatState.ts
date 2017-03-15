@@ -7,21 +7,4 @@ export interface ChatData {
     readonly messages: Message[]
 }
 
-export enum ChatStateType { AuthenticationFailed, AuthenticatedAndInitialized, NotAuthenticated, Authenticating }
-
-export type ChatState =
-    | {
-        readonly type: ChatStateType.NotAuthenticated
-    }
-    | {
-        readonly type: ChatStateType.Authenticating,
-        readonly userName: string
-    }
-    | {
-        readonly type: ChatStateType.AuthenticatedAndInitialized,
-        readonly data: ChatData
-    }
-    | {
-        readonly type: ChatStateType.AuthenticationFailed,
-        readonly errorMessage: string
-    }
+export type JoinResult = { isSuccessful: true, initialData: ChatData } | { isSuccessful: false, errorMessage: string };
