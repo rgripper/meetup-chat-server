@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var Http = require("http");
 var SocketServer = require("socket.io");
+var md5 = require("blueimp-md5");
 var httpServer = Http.createServer();
 var socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] });
 var users = [];
@@ -18,7 +19,8 @@ socketServer.on('connection', function (socket) {
         // }
         currentUser = users.find(function (x) { return x.name == userName; });
         if (currentUser == null) {
-            currentUser = { name: userName, avatarUrl: undefined };
+            currentUser = { name: userName, avatarUrl: "http://unicornify.appspot.com/avatar/" + md5(userName) + "?s=128" };
+            console.log(currentUser.avatarUrl);
             users = users.concat([currentUser]);
         }
         var joinResult = { isSuccessful: true, initialData: { currentUser: currentUser, users: users, messages: messages } };
@@ -41,7 +43,7 @@ socketServer.on('connection', function (socket) {
         }
         console.log('Kicking user', currentUser.name);
         users = users.filter(function (x) { return x != currentUser; });
-        var serverEvent = { type: 'UserLeft', data: currentUser };
+        var serverEvent = { type: 'UserLeft', data: currentUser.name };
         socketServer.emit('chat.server.event', serverEvent);
     };
     socket.on('chat.client.leave', handleLeave);
