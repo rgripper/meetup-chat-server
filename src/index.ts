@@ -74,7 +74,15 @@ socketServer.on('connection', socket => {
     };
 
     socket.on('chat.client.leave', handleLeave);
+
     socket.on('disconnect', handleLeave);
+
+    // reset server data
+    socket.on('chat.client.reset', () => {
+        users = [];
+        messages = [];
+        lastMessageId = 0;
+    });
 });
 
 httpServer.listen(37753);

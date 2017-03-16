@@ -46,6 +46,12 @@ socketServer.on('connection', function (socket) {
     };
     socket.on('chat.client.leave', handleLeave);
     socket.on('disconnect', handleLeave);
+    // reset server data
+    socket.on('chat.client.reset', function () {
+        users = [];
+        messages = [];
+        lastMessageId = 0;
+    });
 });
 httpServer.listen(37753);
-//# sourceMappingURL=main.js.map
+//# sourceMappingURL=index.js.map
