@@ -39,7 +39,7 @@ socketServer.on('connection', socket => {
         currentUser = users.find(x => x.name == userName);
 
         if (currentUser == null) {
-            currentUser = { name: userName, avatarUrl: `http://unicornify.appspot.com/avatar/${md5(userName)}?s=128` };
+            currentUser = { name: userName, avatarUrl: `https://robohash.org/${md5(userName)}??size=128` };
             console.log(currentUser.avatarUrl);
             users = users.concat([currentUser]);
         }
