@@ -4,6 +4,7 @@ import { User } from "./model/User";
 import { Message, MessageSubmission } from "./model/Message";
 import { JoinResult } from './model/ChatState';
 import * as md5 from 'blueimp-md5';
+import { appSettings } from './appSettings';
 
 const httpServer = Http.createServer();
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
@@ -87,4 +88,4 @@ socketServer.on('connection', socket => {
     });
 });
 
-httpServer.listen(37753);
+httpServer.listen(appSettings.chatServerPort);

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var Http = require("http");
 var SocketServer = require("socket.io");
 var md5 = require("blueimp-md5");
+var appSettings_1 = require("./appSettings");
 var httpServer = Http.createServer();
 var socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] });
 var users = [];
@@ -55,5 +56,5 @@ socketServer.on('connection', function (socket) {
         lastMessageId = 0;
     });
 });
-httpServer.listen(37753);
+httpServer.listen(appSettings_1.appSettings.chatServerPort);
 //# sourceMappingURL=index.js.map
