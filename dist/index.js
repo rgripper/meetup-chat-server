@@ -15,39 +15,37 @@ var appSettings_1 = require("./appSettings");
 var ChatRepository_1 = require("./ChatRepository");
 var httpServer = Http.createServer();
 var socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] });
+function addDummyData(chatRepo) {
+    var dummyUser = chatRepo.addOrGetUser('Dummy user');
+    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
+    chatRepo.addMessage({ text: "Well I'm the only one here." }, dummyUser.name);
+    chatRepo.removeUser(dummyUser.name);
+}
 var chatRepo = new ChatRepository_1.ChatRepository();
-var dummyUser = chatRepo.addOrGetUser('Dummy user');
-chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
-chatRepo.addMessage({ text: "Well I'm the only one here." }, dummyUser.name);
-chatRepo.removeUser(dummyUser.name);
-function handleLeave(user) {
-    if (!user) {
-        console.error('handleLeave called when there is no current user');
-        return;
-    }
+addDummyData(chatRepo);
+function handleLeave(emitEvent, user) {
     console.log("User '" + user.name + "' left");
     chatRepo.removeUser(user.name);
-    var serverEvent = { type: 'UserLeft', data: user.name };
-    socketServer.emit('chat.server.event', serverEvent);
+    emitEvent('chat.server.event', { type: 'UserLeft', data: user.name });
 }
 ;
-function handleSubmittedMessage(submittedMessage, user) {
+function handleSubmittedMessage(emitEvent, submittedMessage, user) {
     var newMessage = chatRepo.addMessage(submittedMessage, user.name);
-    var serverEvent = { type: 'MessageReceived', data: newMessage };
-    socketServer.emit('chat.server.event', serverEvent);
+    emitEvent('chat.server.event', { type: 'MessageReceived', data: newMessage });
 }
 function handleNewSocket(socket) {
     console.log('connection acquired', socket.id, new Date());
     socket.on('chat.client.join', function (userName) {
         console.log("User '" + userName + "' joined");
+        var emitEvent = socket.emit.bind(socket);
         var currentUser = chatRepo.addOrGetUser(userName);
-        socket.on('chat.client.leave', function () { return handleLeave(currentUser); });
-        socket.on('disconnect', function () { return handleLeave(currentUser); });
-        socket.on('chat.client.message', function (submittedMessage) { return handleSubmittedMessage(submittedMessage, currentUser); });
+        socket.on('chat.client.leave', function () { return handleLeave(emitEvent, currentUser); });
+        socket.on('disconnect', function () { return handleLeave(emitEvent, currentUser); });
+        socket.on('chat.client.message', function (submittedMessage) { return handleSubmittedMessage(emitEvent, submittedMessage, currentUser); });
         var joinResult = { isSuccessful: true, initialData: __assign({ currentUser: currentUser }, chatRepo.getState()) };
-        socket.emit('chat.server.join-result', joinResult);
+        emitEvent('chat.server.join-result', joinResult);
         var serverEvent = { type: 'UserJoined', data: currentUser };
-        socketServer.emit('chat.server.event', serverEvent);
+        emitEvent('chat.server.event', { type: 'UserJoined', data: currentUser });
     });
     // reset server data
     socket.on('chat.client.reset', function () { return chatRepo.clear(); });

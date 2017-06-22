@@ -9,33 +9,30 @@ import { createAvatarUrl } from "./createAvatarUrl";
 import { ServerEvent } from "./ServerEvent";
 import { ChatRepository } from "./ChatRepository";
 
+type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
+
 const httpServer = Http.createServer();
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
+function addDummyData(chatRepo: ChatRepository) {
+    const dummyUser = chatRepo.addOrGetUser('Dummy user');
+    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
+    chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.name);
+    chatRepo.removeUser(dummyUser.name);
+}
+
 const chatRepo = new ChatRepository();
+addDummyData(chatRepo);
 
-const dummyUser = chatRepo.addOrGetUser('Dummy user');
-chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
-chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.name);
-chatRepo.removeUser(dummyUser.name);
-
-function handleLeave (user: User) {
-    if (!user) {
-        console.error('handleLeave called when there is no current user');
-        return;
-    }
-
+function handleLeave (emitEvent: EmitEvent, user: User) {
     console.log(`User '${user.name}' left`);
     chatRepo.removeUser(user.name);
-
-    const serverEvent: ServerEvent = { type: 'UserLeft', data: user.name };
-    socketServer.emit('chat.server.event', serverEvent);
+    emitEvent('chat.server.event', { type: 'UserLeft', data: user.name });
 };
 
-function handleSubmittedMessage(submittedMessage: SubmittedMessage, user: User) {
+function handleSubmittedMessage(emitEvent: EmitEvent, submittedMessage: SubmittedMessage, user: User) {
     const newMessage = chatRepo.addMessage(submittedMessage, user.name);
-    const serverEvent: ServerEvent = { type: 'MessageReceived', data: newMessage };
-    socketServer.emit('chat.server.event', serverEvent);
+    emitEvent('chat.server.event', { type: 'MessageReceived', data: newMessage });
 }
 
 function handleNewSocket(socket: SocketIO.Socket) {
@@ -44,17 +41,18 @@ function handleNewSocket(socket: SocketIO.Socket) {
     socket.on('chat.client.join', (userName: string) => {
         console.log(`User '${userName}' joined`);
 
+        const emitEvent = socket.emit.bind(socket);
         const currentUser = chatRepo.addOrGetUser(userName);
 
-        socket.on('chat.client.leave', () => handleLeave(currentUser));
-        socket.on('disconnect', () => handleLeave(currentUser));
-        socket.on('chat.client.message', (submittedMessage: SubmittedMessage) => handleSubmittedMessage(submittedMessage, currentUser));
+        socket.on('chat.client.leave', () => handleLeave(emitEvent, currentUser));
+        socket.on('disconnect', () => handleLeave(emitEvent, currentUser));
+        socket.on('chat.client.message', (submittedMessage: SubmittedMessage) => handleSubmittedMessage(emitEvent, submittedMessage, currentUser));
 
         const joinResult: JoinResult = { isSuccessful: true, initialData: { currentUser, ...chatRepo.getState() } };
-        socket.emit('chat.server.join-result', joinResult);
+        emitEvent('chat.server.join-result', joinResult);
 
         const serverEvent: ServerEvent = { type: 'UserJoined', data: currentUser };
-        socketServer.emit('chat.server.event', serverEvent);
+        emitEvent('chat.server.event', { type: 'UserJoined', data: currentUser });
     })
 
     // reset server data
