@@ -4,10 +4,10 @@ import { User } from "./model/User";
 import { Message, SubmittedMessage } from "./model/Message";
 import { JoinResult } from './model/ChatState';
 //import * as md5 from 'blueimp-md5';
-import { appSettings } from './appSettings';
 import { createAvatarUrl } from "./createAvatarUrl";
 import { ServerEvent } from "./ServerEvent";
 import { ChatRepository } from "./ChatRepository";
+import { appSettings } from "./appSettings";
 
 type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
 
@@ -61,5 +61,5 @@ function handleNewSocket(socket: SocketIO.Socket) {
 
 socketServer.on('connection', handleNewSocket);
 
-httpServer.listen(appSettings.chatServerPort);
+httpServer.listen(process.env.PORT || appSettings.chatServerPort);
 console.log('Chat server is listening');
