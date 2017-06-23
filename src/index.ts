@@ -11,7 +11,11 @@ import { appSettings } from "./appSettings";
 
 type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
 
-const httpServer = Http.createServer();
+const httpServer = Http.createServer(function (request, response) {
+  response.writeHead(200, {"Content-Type": "text/plain"});
+  response.end("Chat server is listening");
+});
+
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
 function addDummyData(chatRepo: ChatRepository) {
@@ -62,4 +66,4 @@ function handleNewSocket(socket: SocketIO.Socket) {
 socketServer.on('connection', handleNewSocket);
 
 httpServer.listen(process.env.PORT || appSettings.chatServerPort);
-console.log('Chat server is listening');
+console.log('Chat server is listening on ' + httpServer.address().port);
