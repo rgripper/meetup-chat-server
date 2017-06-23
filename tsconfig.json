@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "ES5",
+        "target": "es2015",
         "module": "commonjs",
         "moduleResolution": "node",
         "sourceMap": true,
@@ -8,7 +8,6 @@
         "experimentalDecorators": true,
         "removeComments": false,
         "allowJs": false,
-        
         "strict": true,
 
         "skipLibCheck": true,
