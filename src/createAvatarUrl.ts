@@ -1,3 +1,3 @@
 export function createAvatarUrl(key: string) {
-    return `https://robohash.org/${key}?size=128`;
+    return `https://robohash.org/${key}?size=128x128`;
 }
