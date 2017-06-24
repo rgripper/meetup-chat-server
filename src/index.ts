@@ -11,13 +11,6 @@ import { appSettings } from "./appSettings";
 
 type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
 
-const httpServer = Http.createServer(function (request, response) {
-  response.writeHead(200, {"Content-Type": "text/plain"});
-  response.end("Chat server is listening");
-});
-
-const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
-
 function addDummyData(chatRepo: ChatRepository) {
     const dummyUser = chatRepo.addOrGetUser('Dummy user');
     chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
@@ -28,7 +21,23 @@ function addDummyData(chatRepo: ChatRepository) {
 const chatRepo = new ChatRepository();
 addDummyData(chatRepo);
 
-function handleLeave (emitEvent: EmitEvent, user: User) {
+const httpServer = Http.createServer(function (request, response) {
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    if (request.url && request.url.endsWith('/clear')) {
+        chatRepo.clear();
+        addDummyData(chatRepo);
+        response.end("Chat server data has been cleared");
+    }
+    else {
+        response.end("Chat server is listening");
+    }
+});
+
+const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
+
+
+
+function handleLeave(emitEvent: EmitEvent, user: User) {
     console.log(`User '${user.name}' left`);
     chatRepo.removeUser(user.name);
     emitEvent('chat.server.event', { type: 'UserLeft', data: user.name });
