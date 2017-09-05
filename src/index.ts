@@ -9,13 +9,14 @@ import { ServerEvent } from "./ServerEvent";
 import { ChatRepository } from "./ChatRepository";
 import { appSettings } from "./appSettings";
 
+
 type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
 
 function addDummyData(chatRepo: ChatRepository) {
     const dummyUser = chatRepo.addOrGetUser('Dummy user');
-    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
-    chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.name);
-    chatRepo.removeUser(dummyUser.name);
+    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.id);
+    chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.id);
+    chatRepo.removeUser(dummyUser.id);
 }
 
 const chatRepo = new ChatRepository();
@@ -35,16 +36,14 @@ const httpServer = Http.createServer(function (request, response) {
 
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
-
-
 function handleLeave(emitEvent: EmitEvent, user: User) {
     console.log(`User '${user.name}' left`);
-    chatRepo.removeUser(user.name);
-    emitEvent('chat.server.event', { type: 'UserLeft', data: user.name });
+    chatRepo.removeUser(user.id);
+    emitEvent('chat.server.event', { type: 'UserLeft', data: user.id });
 };
 
 function handleSubmittedMessage(emitEvent: EmitEvent, submittedMessage: SubmittedMessage, user: User) {
-    const newMessage = chatRepo.addMessage(submittedMessage, user.name);
+    const newMessage = chatRepo.addMessage(submittedMessage, user.id);
     emitEvent('chat.server.event', { type: 'MessageReceived', data: newMessage });
 }
 
@@ -74,5 +73,5 @@ function handleNewSocket(socket: SocketIO.Socket) {
 
 socketServer.on('connection', handleNewSocket);
 
-httpServer.listen(process.env.PORT || appSettings.chatServerPort);
+httpServer.listen((process.env as any).PORT || appSettings.chatServerPort);
 console.log('Chat server is listening on ' + httpServer.address().port);

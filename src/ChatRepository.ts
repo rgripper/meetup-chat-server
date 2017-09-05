@@ -12,18 +12,18 @@ export class ChatRepository {
         const existingUser = this.users.find(x => x.name == name);
         if (existingUser) return existingUser;
 
-        const newUser = { name: name, avatarUrl: createAvatarUrl(name) };
+        const newUser = { name: name, id: this.users.length+1, avatarUrl: createAvatarUrl(name) };
         this.users.push(newUser);
         return newUser;
     }
 
-    removeUser(name: string): void {
-        this.users.splice(this.users.findIndex(x => x.name == name), 1);
+    removeUser(userId: number): void {
+        this.users.splice(this.users.findIndex(x => x.id == userId), 1);
     }
 
-    addMessage(submittedMessage: SubmittedMessage, senderName: string): Message {
+    addMessage(submittedMessage: SubmittedMessage, senderId: number): Message {
         this.lastMessageId++;
-        const newMessage: Message = { id: this.lastMessageId, text: submittedMessage.text, creationDate: new Date(), senderName };
+        const newMessage: Message = { id: this.lastMessageId, text: submittedMessage.text, creationDate: new Date(), senderId };
         this.messages.push(newMessage);
         return newMessage;
     }

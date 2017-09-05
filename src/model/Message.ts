@@ -7,6 +7,6 @@ export interface SubmittedMessage {
 export interface Message {
   id: any,
   creationDate: Date,
-  senderName: string,
+  senderId: number,
   text: string
 }

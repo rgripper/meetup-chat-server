@@ -12,5 +12,5 @@ export type ServerEvent =
     }
     | {
         type: 'UserLeft',
-        data: string
+        data: number
     };
