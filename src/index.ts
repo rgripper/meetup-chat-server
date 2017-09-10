@@ -60,7 +60,7 @@ function handleNewSocket(socket: SocketIO.Socket) {
         socket.on('disconnect', () => handleLeave(emitEvent, currentUser));
         socket.on('chat.client.message', (submittedMessage: SubmittedMessage) => handleSubmittedMessage(emitEvent, submittedMessage, currentUser));
 
-        const joinResult: JoinResult = { isSuccessful: true, initialData: { currentUser, ...chatRepo.getState() } };
+        const joinResult: JoinResult = { isSuccessful: true, initialData: chatRepo.getState(), user: currentUser };
         emitEvent('chat.server.join-result', joinResult);
 
         const serverEvent: ServerEvent = { type: 'UserJoined', data: currentUser };
