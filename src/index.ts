@@ -13,7 +13,7 @@ import { appSettings } from "./appSettings";
 type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
 
 function addDummyData(chatRepo: ChatRepository) {
-    const dummyUser = chatRepo.addOrGetUser('Dummy user');
+    const dummyUser = chatRepo.addOrConnectUser('Dummy user');
     chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.id);
     chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.id);
     chatRepo.removeUser(dummyUser.id);
@@ -54,7 +54,7 @@ function handleNewSocket(socket: SocketIO.Socket) {
         console.log(`User '${userName}' joined`);
 
         const emitEvent = socket.emit.bind(socket);
-        const currentUser = chatRepo.addOrGetUser(userName);
+        const currentUser = chatRepo.addOrConnectUser(userName);
 
         socket.on('chat.client.leave', () => handleLeave(emitEvent, currentUser));
         socket.on('disconnect', () => handleLeave(emitEvent, currentUser));

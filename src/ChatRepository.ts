@@ -8,17 +8,23 @@ export class ChatRepository {
     private messages: Message[] = [];
     private lastMessageId = 0;
 
-    addOrGetUser(name: string): User {
+    addOrConnectUser(name: string): User {
         const existingUser = this.users.find(x => x.name == name);
-        if (existingUser) return existingUser;
+        if (existingUser) {
+            existingUser.isConnected = true;
+            return existingUser;
+        };
 
-        const newUser = { name: name, id: this.users.length+1, avatarUrl: createAvatarUrl(name) };
+        const newUser = { name: name, isConnected: true, isTyping: false, id: this.users.length + 1, avatarUrl: createAvatarUrl(name) };
         this.users.push(newUser);
         return newUser;
     }
 
     removeUser(userId: number): void {
-        this.users.splice(this.users.findIndex(x => x.id == userId), 1);
+        const disconnectedUser = this.users.find(x => x.id == userId);
+        if (disconnectedUser) {
+            disconnectedUser.isConnected = false;
+        }
     }
 
     addMessage(submittedMessage: SubmittedMessage, senderId: number): Message {

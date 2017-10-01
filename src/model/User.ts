@@ -1,5 +1,7 @@
 export interface User {
     id: number
-    name: string,
+    name: string
     avatarUrl?: string
+    isConnected: boolean
+    isTyping: boolean
 }
