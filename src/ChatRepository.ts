@@ -1,5 +1,5 @@
-import { User } from "./model/User";
-import { Message, SubmittedMessage } from "./model/Message";
+import { User } from "./shared/model/User";
+import { Message, SubmittedMessage } from "./shared/model/Message";
 import { createAvatarUrl } from "./createAvatarUrl";
 
 export class ChatRepository {
@@ -24,6 +24,13 @@ export class ChatRepository {
         const disconnectedUser = this.users.find(x => x.id == userId);
         if (disconnectedUser) {
             disconnectedUser.isConnected = false;
+        }
+    }
+
+    setIsTyping(isTyping: boolean, userId: number): void {
+        const typingUser = this.users.find(x => x.id == userId);
+        if (typingUser) {
+            typingUser.isTyping = isTyping;
         }
     }
 

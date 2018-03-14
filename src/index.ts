@@ -1,16 +1,18 @@
 import * as Http from 'http';
 import * as SocketServer from 'socket.io';
-import { User } from "./model/User";
-import { Message, SubmittedMessage } from "./model/Message";
-import { JoinResult } from './model/ChatState';
+import { User } from "./shared/model/User";
+import { Message, SubmittedMessage } from "./shared/model/Message";
+
 //import * as md5 from 'blueimp-md5';
 import { createAvatarUrl } from "./createAvatarUrl";
-import { ServerEvent } from "./ServerEvent";
 import { ChatRepository } from "./ChatRepository";
 import { appSettings } from "./appSettings";
+import { WebSocketEventName } from './shared/transport/WebSocketEventName';
+import { ClientCommand, ClientCommandType } from './shared/ClientCommand';
+import { ServerEvent, ServerEventType } from './shared/ServerEvent';
 
 
-type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
+type EmitEvent = (event: ServerEvent) => void
 
 function addDummyData(chatRepo: ChatRepository) {
     const dummyUser = chatRepo.addOrConnectUser('Dummy user');
@@ -34,41 +36,67 @@ const httpServer = Http.createServer(function (request, response) {
     }
 });
 
+const CustomClientEventName = 'CustomClientEvent'
+
+enum CustomClientEventType {
+    UserLeft = 'CustomClientEventType.UserLeft',
+    UserJoined = 'CustomClientEventType.UserJoined',
+    NewMessage = 'CustomClientEventType.MessageReceived',
+    Reset = 'CustomClientEventType.Reset'
+}
+
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
 function handleLeave(emitEvent: EmitEvent, user: User) {
     console.log(`User '${user.name}' left`);
     chatRepo.removeUser(user.id);
-    emitEvent('chat.server.event', { type: 'UserLeft', data: user.id });
-};
+    emitEvent({ type: ServerEventType.UserLeft, userId: user.id });
+}
 
 function handleSubmittedMessage(emitEvent: EmitEvent, submittedMessage: SubmittedMessage, user: User) {
-    const newMessage = chatRepo.addMessage(submittedMessage, user.id);
-    emitEvent('chat.server.event', { type: 'MessageReceived', data: newMessage });
+    const addedMessage = chatRepo.addMessage(submittedMessage, user.id);
+    emitEvent({ type: ServerEventType.MessageAdded, message: addedMessage });
 }
 
 function handleNewSocket(socket: SocketIO.Socket) {
     console.log('connection acquired', socket.id, new Date());
 
-    socket.on('chat.client.join', (userName: string) => {
-        console.log(`User '${userName}' joined`);
+    socket.on(WebSocketEventName.ClientCommand, (clientCommand: ClientCommand) => {
+        const emitEvent = (event: ServerEvent) => socket.emit(WebSocketEventName.ServerEvent, event);
+        let currentUser: User | undefined;
 
-        const emitEvent = socket.emit.bind(socket);
-        const currentUser = chatRepo.addOrConnectUser(userName);
+        switch (clientCommand.type) {
+            case ClientCommandType.TryLogin: {
+                
+                currentUser = chatRepo.addOrConnectUser(clientCommand.userName);
+        
+                socket.on(CustomClientEventType.UserLeft, () => handleLeave(emitEvent, currentUser!));
+                socket.on('disconnect', () => handleLeave(emitEvent, currentUser!));
+        
+                emitEvent({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+                emitEvent({ type: ServerEventType.UserJoined, user: currentUser });
 
-        socket.on('chat.client.leave', () => handleLeave(emitEvent, currentUser));
-        socket.on('disconnect', () => handleLeave(emitEvent, currentUser));
-        socket.on('chat.client.message', (submittedMessage: SubmittedMessage) => handleSubmittedMessage(emitEvent, submittedMessage, currentUser));
-
-        const joinResult: JoinResult = { isSuccessful: true, initialData: chatRepo.getState(), user: currentUser };
-        emitEvent('chat.server.join-result', joinResult);
-
-        const serverEvent: ServerEvent = { type: 'UserJoined', data: currentUser };
-        emitEvent('chat.server.event', { type: 'UserJoined', data: currentUser });
+                console.log(`User '${clientCommand}' joined`);
+                return;
+            }
+            case ClientCommandType.Logout: {
+                handleLeave(emitEvent, currentUser!);
+                return;
+            }
+            case ClientCommandType.AddMessage: {
+                handleSubmittedMessage(emitEvent, clientCommand.message, currentUser!);
+                return;
+            }
+            case ClientCommandType.ResetState: {
+                chatRepo.clear();
+                emitEvent({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+                return;
+            }
+        }
     })
 
     // reset server data
-    socket.on('chat.client.reset', () => chatRepo.clear());
+    socket.on(CustomClientEventType.Reset, () => chatRepo.clear());
 }
 
 socketServer.on('connection', handleNewSocket);
