@@ -1,69 +1,109 @@
 import * as Http from 'http';
 import * as SocketServer from 'socket.io';
-import { User } from "./model/User";
-import { Message, SubmittedMessage } from "./model/Message";
-import { JoinResult } from './model/ChatState';
+import { User } from "./shared/model/User";
+import { Message, SubmittedMessage } from "./shared/model/Message";
+
 //import * as md5 from 'blueimp-md5';
 import { createAvatarUrl } from "./createAvatarUrl";
-import { ServerEvent } from "./ServerEvent";
 import { ChatRepository } from "./ChatRepository";
 import { appSettings } from "./appSettings";
+import { WebSocketEventName } from './shared/transport/WebSocketEventName';
+import { ClientCommand, ClientCommandType } from './shared/ClientCommand';
+import { ServerEvent, ServerEventType } from './shared/ServerEvent';
 
-type EmitEvent = (eventName: string, eventData: ServerEvent | JoinResult) => void
-
-const httpServer = Http.createServer(function (request, response) {
-  response.writeHead(200, {"Content-Type": "text/plain"});
-  response.end("Chat server is listening");
-});
-
-const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
+type EmitEvent = (event: ServerEvent) => void
 
 function addDummyData(chatRepo: ChatRepository) {
-    const dummyUser = chatRepo.addOrGetUser('Dummy user');
-    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.name);
-    chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.name);
-    chatRepo.removeUser(dummyUser.name);
+    const dummyUser = chatRepo.addOrConnectUser('Dummy user');
+    chatRepo.addMessage({ text: 'Are you talking to me?' }, dummyUser.id);
+    chatRepo.addMessage({ text: `Well I'm the only one here.` }, dummyUser.id);
+    chatRepo.removeUser(dummyUser.id);
 }
 
 const chatRepo = new ChatRepository();
-addDummyData(chatRepo);
+//addDummyData(chatRepo);
 
-function handleLeave (emitEvent: EmitEvent, user: User) {
+const httpServer = Http.createServer(function (request, response) {
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    if (request.url && request.url.endsWith('/clear')) {
+        chatRepo.clear();
+        //addDummyData(chatRepo);
+        response.end("Chat server data has been cleared");
+    }
+    else {
+        response.end("Chat server is listening");
+    }
+});
+
+const CustomClientEventName = 'CustomClientEvent'
+
+const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
+
+const broadcast = (event: ServerEvent) => socketServer.emit(WebSocketEventName.ServerEvent, event);
+
+function handleLogout(user: User) {
     console.log(`User '${user.name}' left`);
-    chatRepo.removeUser(user.name);
-    emitEvent('chat.server.event', { type: 'UserLeft', data: user.name });
-};
-
-function handleSubmittedMessage(emitEvent: EmitEvent, submittedMessage: SubmittedMessage, user: User) {
-    const newMessage = chatRepo.addMessage(submittedMessage, user.name);
-    emitEvent('chat.server.event', { type: 'MessageReceived', data: newMessage });
+    chatRepo.removeUser(user.id);
+    broadcast({ type: ServerEventType.UserLeft, userId: user.id });
 }
 
+function handleAddMessage(submittedMessage: SubmittedMessage, user: User) {
+    const addedMessage = chatRepo.addMessage(submittedMessage, user.id);
+    broadcast({ type: ServerEventType.MessageAdded, message: addedMessage });
+}
+
+function handlResetState() {
+    chatRepo.clear();
+    broadcast({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+}
+
+
 function handleNewSocket(socket: SocketIO.Socket) {
-    console.log('connection acquired', socket.id, new Date());
+    console.log('Connected', socket.id);
+    let currentUser: User | undefined;
+    socket.on('disconnect', () => {
+        if (currentUser != undefined) {
+            handleLogout(currentUser);
+            currentUser = undefined;
+        }
+    });
+    socket.on(WebSocketEventName.ClientCommand, (clientCommand: ClientCommand) => {
+        console.log('receiving command', JSON.stringify(clientCommand))
+        const reply = (event: ServerEvent) => socket.emit(WebSocketEventName.ServerEvent, event);
+        
+        if (clientCommand.type === ClientCommandType.TryLogin) {
+            currentUser = chatRepo.addOrConnectUser(clientCommand.userName);
 
-    socket.on('chat.client.join', (userName: string) => {
-        console.log(`User '${userName}' joined`);
+            broadcast({ type: ServerEventType.UserJoined, user: currentUser });
+            reply({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
 
-        const emitEvent = socket.emit.bind(socket);
-        const currentUser = chatRepo.addOrGetUser(userName);
+            console.log(`User '${clientCommand.userName}' joined`);
+            return;
+        }
 
-        socket.on('chat.client.leave', () => handleLeave(emitEvent, currentUser));
-        socket.on('disconnect', () => handleLeave(emitEvent, currentUser));
-        socket.on('chat.client.message', (submittedMessage: SubmittedMessage) => handleSubmittedMessage(emitEvent, submittedMessage, currentUser));
+        if (currentUser == undefined) {
+            return;
+        }
 
-        const joinResult: JoinResult = { isSuccessful: true, initialData: { currentUser, ...chatRepo.getState() } };
-        emitEvent('chat.server.join-result', joinResult);
-
-        const serverEvent: ServerEvent = { type: 'UserJoined', data: currentUser };
-        emitEvent('chat.server.event', { type: 'UserJoined', data: currentUser });
+        switch (clientCommand.type) {
+            case ClientCommandType.Logout: {
+                handleLogout(currentUser);
+                currentUser = undefined;
+                return;
+            }
+            case ClientCommandType.AddMessage: {
+                handleAddMessage(clientCommand.message, currentUser);
+                return;
+            }
+            case ClientCommandType.ResetState: {
+                handlResetState();
+                return;
+            }
+        }
     })
-
-    // reset server data
-    socket.on('chat.client.reset', () => chatRepo.clear());
 }
 
 socketServer.on('connection', handleNewSocket);
 
-httpServer.listen(process.env.PORT || appSettings.chatServerPort);
+httpServer.listen((process.env as any).PORT || appSettings.chatServerPort);
 console.log('Chat server is listening on ' + httpServer.address().port);

@@ -1,3 +1,3 @@
 export const appSettings = {
-    chatServerPort: 8000
+    chatServerPort: 35558
 }
