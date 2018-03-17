@@ -39,35 +39,46 @@ const CustomClientEventName = 'CustomClientEvent'
 
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] } as SocketIO.ServerOptions);
 
-function handleLogout(emitEvent: EmitEvent, user: User) {
+const broadcast = (event: ServerEvent) => socketServer.emit(WebSocketEventName.ServerEvent, event);
+
+function handleLogout(user: User) {
     console.log(`User '${user.name}' left`);
     chatRepo.removeUser(user.id);
-    emitEvent({ type: ServerEventType.UserLeft, userId: user.id });
+    broadcast({ type: ServerEventType.UserLeft, userId: user.id });
 }
 
-function handleAddMessage(emitEvent: EmitEvent, submittedMessage: SubmittedMessage, user: User) {
+function handleAddMessage(submittedMessage: SubmittedMessage, user: User) {
     const addedMessage = chatRepo.addMessage(submittedMessage, user.id);
-    emitEvent({ type: ServerEventType.MessageAdded, message: addedMessage });
+    broadcast({ type: ServerEventType.MessageAdded, message: addedMessage });
 }
+
+function handlResetState() {
+    chatRepo.clear();
+    broadcast({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+}
+
 
 function handleNewSocket(socket: SocketIO.Socket) {
     console.log('Connected', socket.id);
     let currentUser: User | undefined;
-    socket.on('disconnect', () => console.log('Disconnected', socket.id));
+    socket.on('disconnect', () => {
+        if (currentUser != undefined) {
+            handleLogout(currentUser);
+            currentUser = undefined;
+        }
+    });
     socket.on(WebSocketEventName.ClientCommand, (clientCommand: ClientCommand) => {
         console.log('receiving command', JSON.stringify(clientCommand))
         const reply = (event: ServerEvent) => socket.emit(WebSocketEventName.ServerEvent, event);
-        const broadcast = (event: ServerEvent) => socketServer.emit(WebSocketEventName.ServerEvent, event);
-
+        
         if (clientCommand.type === ClientCommandType.TryLogin) {
-                currentUser = chatRepo.addOrConnectUser(clientCommand.userName);
+            currentUser = chatRepo.addOrConnectUser(clientCommand.userName);
 
-                broadcast({ type: ServerEventType.UserJoined, user: currentUser });
-                reply({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
-                
+            broadcast({ type: ServerEventType.UserJoined, user: currentUser });
+            reply({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
 
-                console.log(`User '${clientCommand.userName}' joined`);
-                return;
+            console.log(`User '${clientCommand.userName}' joined`);
+            return;
         }
 
         if (currentUser == undefined) {
@@ -76,16 +87,16 @@ function handleNewSocket(socket: SocketIO.Socket) {
 
         switch (clientCommand.type) {
             case ClientCommandType.Logout: {
-                handleLogout(broadcast, currentUser);
+                handleLogout(currentUser);
+                currentUser = undefined;
                 return;
             }
             case ClientCommandType.AddMessage: {
-                handleAddMessage(broadcast, clientCommand.message, currentUser);
+                handleAddMessage(clientCommand.message, currentUser);
                 return;
             }
             case ClientCommandType.ResetState: {
-                chatRepo.clear();
-                broadcast({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+                handlResetState();
                 return;
             }
         }
