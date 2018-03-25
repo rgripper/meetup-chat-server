@@ -21,7 +21,7 @@ function addDummyData(chatRepo: ChatRepository) {
 }
 
 const chatRepo = new ChatRepository();
-//addDummyData(chatRepo);
+addDummyData(chatRepo);
 
 const httpServer = Http.createServer(function (request, response) {
     response.writeHead(200, { "Content-Type": "text/plain" });

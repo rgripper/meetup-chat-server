@@ -14,7 +14,7 @@ function addDummyData(chatRepo) {
     chatRepo.removeUser(dummyUser.id);
 }
 const chatRepo = new ChatRepository_1.ChatRepository();
-//addDummyData(chatRepo);
+addDummyData(chatRepo);
 const httpServer = Http.createServer(function (request, response) {
     response.writeHead(200, { "Content-Type": "text/plain" });
     if (request.url && request.url.endsWith('/clear')) {
@@ -28,26 +28,26 @@ const httpServer = Http.createServer(function (request, response) {
 });
 const CustomClientEventName = 'CustomClientEvent';
 const socketServer = SocketServer(httpServer, { wsEngine: 'ws', transports: ['websocket'] });
-function handleLogout(emitEvent, user) {
+const broadcast = (event) => socketServer.emit(WebSocketEventName_1.WebSocketEventName.ServerEvent, event);
+function handleLogout(user) {
     console.log(`User '${user.name}' left`);
     chatRepo.removeUser(user.id);
-    emitEvent({ type: ServerEvent_1.ServerEventType.UserLeft, userId: user.id });
+    broadcast({ type: ServerEvent_1.ServerEventType.UserLeft, userId: user.id });
 }
-function handleAddMessage(emitEvent, submittedMessage, user) {
+function handleAddMessage(submittedMessage, user) {
     const addedMessage = chatRepo.addMessage(submittedMessage, user.id);
-    emitEvent({ type: ServerEvent_1.ServerEventType.MessageAdded, message: addedMessage });
+    broadcast({ type: ServerEvent_1.ServerEventType.MessageAdded, message: addedMessage });
 }
-function handlResetState(emitEvent) {
+function handlResetState() {
     chatRepo.clear();
-    emitEvent({ type: ServerEvent_1.ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+    broadcast({ type: ServerEvent_1.ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
 }
-const broadcast = (event) => socketServer.emit(WebSocketEventName_1.WebSocketEventName.ServerEvent, event);
 function handleNewSocket(socket) {
     console.log('Connected', socket.id);
     let currentUser;
     socket.on('disconnect', () => {
         if (currentUser != undefined) {
-            handleLogout(broadcast, currentUser);
+            handleLogout(currentUser);
             currentUser = undefined;
         }
     });
@@ -66,16 +66,16 @@ function handleNewSocket(socket) {
         }
         switch (clientCommand.type) {
             case ClientCommand_1.ClientCommandType.Logout: {
-                handleLogout(broadcast, currentUser);
+                handleLogout(currentUser);
                 currentUser = undefined;
                 return;
             }
             case ClientCommand_1.ClientCommandType.AddMessage: {
-                handleAddMessage(broadcast, clientCommand.message, currentUser);
+                handleAddMessage(clientCommand.message, currentUser);
                 return;
             }
             case ClientCommand_1.ClientCommandType.ResetState: {
-                handlResetState(broadcast);
+                handlResetState();
                 return;
             }
         }
