@@ -1,1 +1,1 @@
-{"version":3,"file":"createAvatarUrl.js","sourceRoot":"","sources":["../src/createAvatarUrl.ts"],"names":[],"mappings":";;AAAA,yBAAgC,GAAW;IACvC,MAAM,CAAC,wBAAwB,GAAG,eAAe,CAAC;AACtD,CAAC;AAFD,0CAEC"}
+{"version":3,"file":"createAvatarUrl.js","sourceRoot":"","sources":["../src/createAvatarUrl.ts"],"names":[],"mappings":";;AAAA,yBAAgC,GAAW;IACvC,OAAO,wBAAwB,GAAG,eAAe,CAAC;AACtD,CAAC;AAFD,0CAEC"}

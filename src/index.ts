@@ -75,7 +75,7 @@ function handleNewSocket(socket: SocketIO.Socket) {
             currentUser = chatRepo.addOrConnectUser(clientCommand.userName);
 
             broadcast({ type: ServerEventType.UserJoined, user: currentUser });
-            reply({ type: ServerEventType.LoginSuccessful, chat: chatRepo.getState() });
+            reply({ type: ServerEventType.LoginSuccessful, chat: { ...chatRepo.getState(), currentUserId: currentUser.id } });
 
             console.log(`User '${clientCommand.userName}' joined`);
             return;

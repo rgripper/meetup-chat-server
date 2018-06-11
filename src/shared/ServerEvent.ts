@@ -12,22 +12,22 @@ export enum ServerEventType {
 
 export type ServerEvent =
     | {
-        type: ServerEventType.MessageAdded,
+        type: ServerEventType.MessageAdded
         message: Message
     }
     | {
-        type: ServerEventType.UserJoined,
+        type: ServerEventType.UserJoined
         user: User
     }
     | {
-        type: ServerEventType.UserLeft,
+        type: ServerEventType.UserLeft
         userId: number
     }
     | {
-        type: ServerEventType.LoginSuccessful,
-        chat: ChatState
+        type: ServerEventType.LoginSuccessful
+        chat: ChatState & { currentUserId?: number }
     }
     | {
-        type: ServerEventType.LoginFailed,
+        type: ServerEventType.LoginFailed
         error: string
     }
